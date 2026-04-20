@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="page-header">
+    <div>
+        <h1>Painel administrativo</h1>
+        <p>Cadastre produtos, controle pedidos, defina horários e personalize o visual da loja.</p>
+    </div>
+    <div class="button-row">
+        <a class="btn btn-primary" href="{{ url_for('admin.theme_editor') }}">Editor visual do site</a>
+        <form method="post" action="{{ url_for('admin.clear_order_history') }}" onsubmit="return confirm('Isso vai apagar todo o histórico de pedidos. Deseja continuar?');">
+            <button type="submit" class="btn btn-danger">Limpar histórico</button>
+        </form>
+    </div>
+</section>
+<div class="stats-grid">
+    <div class="stat-card"><span>Produtos</span><strong>{{ products|length }}</strong></div>
+    <div class="stat-card"><span>Pedidos</span><strong>{{ orders_count }}</strong></div>
+    <div class="stat-card"><span>Usuários</span><strong>{{ users_count }}</strong></div>
+    <div class="stat-card"><span>Vendas pagas</span><strong>{{ format_brl(total_sales) }}</strong></div>
+</div>
+<div class="admin-grid admin-grid-wide">
+    <div class="table-card full-width">
+        <div class="section-title"><h2>Últimos pedidos</h2></div>
+        <table class="table"><thead><tr><th>Pedido</th><th>Cliente</th><th>Total</th><th>Status</th><th>Pagamento</th><th>Ações</th></tr></thead><tbody>
+        {% for order in orders %}<tr><td>{{ order.code or ('#' ~ order.id) }}</td><td>{{ order.user.name }}</td><td>{{ format_brl(order.subtotal) }}</td><td>{{ order.status_display }}</td><td>{{ order.payment_status_display }}</td><td><a class="btn btn-sm" href="{{ url_for('admin.order_detail', order_id=order.id) }}">Abrir pedido</a></td></tr>{% else %}<tr><td colspan="6">Nenhum pedido encontrado.</td></tr>{% endfor %}
+        </tbody></table>
+    </div>
+    <div class="table-card">
+        <div class="section-title"><h2>Produtos</h2><a class="btn btn-primary" href="{{ url_for('admin.product_new') }}">Novo produto</a></div>
+        <table class="table"><thead><tr><th>Nome</th><th>Tipo</th><th>Categoria</th><th>Preço</th><th>Estoque</th><th>Ações</th></tr></thead><tbody>
+        {% for product in products %}
+        <tr><td>{{ product.name }}</td><td>{{ product.type_display }}</td><td>{{ product.category.name }}</td><td>{% if product.has_discount %}<div class="price-table-stack"><span class="product-price-old">{{ format_brl(product.original_price) }}</span><strong class="product-price">{{ format_brl(product.effective_price) }}</strong></div>{% else %}{{ format_brl(product.original_price) }}{% endif %}</td><td>{{ product.stock }}</td><td><div class="button-row compact-buttons"><a class="btn btn-sm" href="{{ url_for('admin.product_edit', product_id=product.id) }}">Editar</a><form method="post" action="{{ url_for('admin.product_delete', product_id=product.id) }}" onsubmit="return confirm('Remover este produto?');"><button class="btn btn-danger btn-sm" type="submit">Remover</button></form></div></td></tr>
+        {% endfor %}
+        </tbody></table>
+    </div>
+    <div class="stack-gap">
+        <div class="table-card">
+            <h2>Categorias</h2>
+            <form method="post" action="{{ url_for('admin.category_new') }}" class="inline-form compact-form"><input type="text" name="name" placeholder="Nova categoria" required><button type="submit" class="btn btn-primary">Adicionar</button></form>
+            <div class="category-list">{% for category in categories %}<div class="category-row"><span>{{ category.name }}</span><form method="post" action="{{ url_for('admin.category_delete', category_id=category.id) }}" onsubmit="return confirm('Excluir categoria?');"><button type="submit" class="btn btn-danger btn-sm">Excluir</button></form></div>{% endfor %}</div>
+        </div>
+        <div class="table-card">
+            <h2>Configurações da loja</h2>
+            <form method="post" action="{{ url_for('admin.update_settings') }}" class="form-grid">
+                <label>Nome da loja<input type="text" name="store_name" value="{{ settings.store_name }}" required></label>
+                <label>WhatsApp da loja / suporte<input type="text" name="whatsapp_number" value="{{ settings.whatsapp_number }}" required></label>
+                <small class="muted">Esse número é usado no botão flutuante de suporte do WhatsApp.</small>
+                <label>Conta vinculada ao dono<select name="owner_user_id" required>{% for user in owner_candidates %}<option value="{{ user.id }}" {% if settings.owner_user_id == user.id|string %}selected{% endif %}>{{ user.name }} - {{ user.role_display }}</option>{% endfor %}</select></label>
+                <label>Telefone do dono para receber pedidos no WhatsApp<input type="text" name="owner_whatsapp_number" value="{{ settings.owner_whatsapp_number }}" required></label>
+                <label>Chave PIX<input type="text" name="pix_key" value="{{ settings.pix_key }}" required></label>
+                <label class="checkbox-label full-width"><input type="checkbox" name="bulk_discount_enabled" {% if settings.bulk_discount_enabled %}checked{% endif %}>Ativar desconto automático por quantidade</label>
+                <label>Quantidade mínima para desconto<input type="number" name="bulk_discount_min_qty" min="2" value="{{ settings.bulk_discount_min_qty }}" required></label>
+                <label>Percentual do desconto (%)<input type="number" name="bulk_discount_percent" min="0" max="99" step="0.01" value="{{ settings.bulk_discount_percent }}" required></label>
+                <label>Nome do recebedor PIX<input type="text" name="merchant_name" value="{{ settings.merchant_name }}" required></label>
+                <label>Cidade do recebedor<input type="text" name="merchant_city" value="{{ settings.merchant_city }}" required></label>
+                <label class="checkbox-label full-width"><input type="checkbox" name="schedule_enabled" {% if settings.schedule_enabled %}checked{% endif %}>Ativar horário de funcionamento automático</label>
+                <label>Abre às<input type="time" name="opening_time" value="{{ settings.opening_time }}"></label>
+                <label>Fecha às<input type="time" name="closing_time" value="{{ settings.closing_time }}"></label>
+                <button type="submit" class="btn btn-primary">Salvar configurações</button>
+            </form>
+            <div class="info-panel"><p><strong>Conta atualmente vinculada:</strong> {{ linked_owner.name if linked_owner else 'Nenhuma' }}</p><p><strong>Telefone usado para os pedidos:</strong> {{ settings.owner_whatsapp_number or 'Não configurado' }}</p><p><strong>Funcionamento automático:</strong> {{ 'Ligado' if settings.schedule_enabled else 'Desligado' }}</p><p><strong>Horário configurado:</strong> {{ settings.opening_time }} às {{ settings.closing_time }}</p><p><strong>Loja disponível agora:</strong> {{ 'SIM' if settings.store_open_now else 'NÃO' }}</p><p><strong>Desconto por quantidade:</strong> {% if settings.bulk_discount_enabled %}ATIVO — {{ settings.bulk_discount_percent }}% a partir de {{ settings.bulk_discount_min_qty }} peças{% else %}Desligado{% endif %}</p><p class="muted">Fora do horário ou quando a loja estiver desligada, o cliente vê a tela offline.</p></div>
+            {% if current_user.is_owner %}<hr><div class="toggle-box"><p><strong>Status manual da loja:</strong> {{ 'ONLINE' if settings.store_enabled else 'OFFLINE' }}</p><form method="post" action="{{ url_for('admin.toggle_store') }}"><button type="submit" class="btn {% if settings.store_enabled %}btn-danger{% else %}btn-success{% endif %}">{% if settings.store_enabled %}Desligar atendimento{% else %}Ligar atendimento{% endif %}</button></form></div>{% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

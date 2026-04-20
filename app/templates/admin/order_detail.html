@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="page-header">
+    <div>
+        <h1>Pedido {{ order.code or ('#' ~ order.id) }}</h1>
+        <p>Cliente: <strong>{{ order.user.name }}</strong> | Telefone: <strong>{{ order.user.phone }}</strong></p>
+    </div>
+    <a class="btn" href="{{ url_for('admin.dashboard') }}">Voltar ao painel</a>
+</section>
+
+<div class="order-layout">
+    <div class="table-card">
+        <h2>Resumo do pedido</h2>
+        <p><strong>Status:</strong> {{ order.status_display }}</p>
+        <p><strong>Pagamento:</strong> {{ order.payment_status_display }}</p>
+        <p><strong>Total:</strong> {{ format_brl(order.subtotal) }}</p>
+        <p><strong>Criado em:</strong> {{ order.created_at.strftime('%d/%m/%Y %H:%M') }}</p>
+
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Produto</th>
+                    <th>Cor</th>
+                    <th>Tamanho</th>
+                    <th>Qtd</th>
+                    <th>Unitário</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in order.items %}
+                <tr>
+                    <td>{{ item.product_name }}</td>
+                    <td>
+                        {% if item.selected_color_name %}
+                            <span class="cart-size-chip cart-color-chip">
+                                <span class="swatch cart-color-swatch" style="background: {{ item.selected_color_hex or '#111827' }}"></span>
+                                {{ item.selected_color_name }}
+                            </span>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>{{ item.selected_size or '-' }}</td>
+                    <td>{{ item.quantity }}</td>
+                    <td>{{ format_brl(item.unit_price) }}</td>
+                    <td>{{ format_brl(item.total_price) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="payment-card">
+        <h2>Ações do administrador</h2>
+        <div class="button-row action-stack">
+            {% if order.status not in ['rejected', 'cancelled'] %}
+                <form method="post" action="{{ url_for('admin.approve_order', order_id=order.id) }}"><button type="submit" class="btn btn-success">Aprovar pedido</button></form>
+            {% endif %}
+            {% if order.payment_status != 'paid' and order.status != 'cancelled' %}
+                <form method="post" action="{{ url_for('admin.reject_order', order_id=order.id) }}"><button type="submit" class="btn btn-danger">Recusar pedido</button></form>
+            {% endif %}
+            {% if order.status not in ['rejected', 'cancelled'] and order.payment_status != 'paid' %}
+                <form method="post" action="{{ url_for('admin.mark_paid', order_id=order.id) }}"><button type="submit" class="btn btn-primary">Marcar como pago e gerar comprovante</button></form>
+            {% endif %}
+            {% if customer_whatsapp_link %}
+                <a class="btn" target="_blank" rel="noopener" href="{{ customer_whatsapp_link }}">Avisar cliente no WhatsApp</a>
+            {% endif %}
+            {% if order.seller_whatsapp_link %}
+                <a class="btn" target="_blank" rel="noopener" href="{{ order.seller_whatsapp_link }}">Reabrir mensagem enviada ao dono</a>
+            {% endif %}
+        </div>
+
+        {% if order.pix_qr_path %}
+            <hr>
+            <h3>Pagamento PIX</h3>
+            <img class="qr-image" src="{{ url_for('static', filename=order.pix_qr_path) }}" alt="QR Code PIX">
+            <textarea rows="6" readonly>{{ order.pix_payload }}</textarea>
+        {% endif %}
+
+        {% if order.receipt_text %}
+            <div class="receipt-box"><h3>Comprovante gerado</h3><pre>{{ order.receipt_text }}</pre></div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

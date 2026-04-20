@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="page-header">
+    <div>
+        <h1>Editor visual do site</h1>
+        <p>Escolha a área na lateral, ajuste as cores e clique em aplicar. O visual reflete no site inteiro.</p>
+    </div>
+    <a class="btn" href="{{ url_for('admin.dashboard') }}">Voltar ao painel</a>
+</section>
+
+<form method="post" class="theme-editor-shell">
+    <aside class="theme-sidebar table-card">
+        <h2>Áreas do site</h2>
+        <p class="muted">Clique em uma classe/área para editar de forma padronizada.</p>
+        <div class="theme-nav-list">
+            {% for block in visual_blocks %}
+            <button type="button" class="theme-nav-btn {% if loop.first %}active{% endif %}" data-target="{{ block.id }}">
+                <strong>{{ block.label }}</strong>
+                <span>{{ block.selectors }}</span>
+            </button>
+            {% endfor %}
+        </div>
+    </aside>
+
+    <section class="theme-main stack-gap">
+        {% for block in visual_blocks %}
+        <article class="table-card theme-panel {% if not loop.first %}hidden{% endif %}" data-panel="{{ block.id }}">
+            <div class="section-title">
+                <div>
+                    <h2>{{ block.label }}</h2>
+                    <p class="muted">{{ block.description }}</p>
+                </div>
+                <span class="badge badge-soft">{{ block.selectors }}</span>
+            </div>
+
+            <div class="theme-class-chips">
+                {% for class_name in block.classes %}
+                <span class="class-chip">{{ class_name }}</span>
+                {% endfor %}
+            </div>
+
+            <div class="theme-fields-grid">
+                <label>Cor de fundo
+                    <div class="color-input-row">
+                        <input type="color" data-sync-color value="{{ block.theme_values.background if block.theme_values.background.startswith('#') else '#ffffff' }}">
+                        <input type="text" name="theme__{{ block.id }}__background" value="{{ block.theme_values.background }}" placeholder="#ffffff ou rgb(...)">
+                    </div>
+                </label>
+                <label>Cor do texto
+                    <div class="color-input-row">
+                        <input type="color" data-sync-color value="{{ block.theme_values.text if block.theme_values.text.startswith('#') else '#111827' }}">
+                        <input type="text" name="theme__{{ block.id }}__text" value="{{ block.theme_values.text }}" placeholder="#111827">
+                    </div>
+                </label>
+                <label>Cor da borda
+                    <div class="color-input-row">
+                        <input type="color" data-sync-color value="{{ block.theme_values.border if block.theme_values.border.startswith('#') else '#d1d5db' }}">
+                        <input type="text" name="theme__{{ block.id }}__border" value="{{ block.theme_values.border }}" placeholder="#d1d5db">
+                    </div>
+                </label>
+                <label>Tamanho da fonte
+                    <input type="text" name="theme__{{ block.id }}__font_size" value="{{ block.theme_values.font_size }}" placeholder="16px ou 1rem">
+                </label>
+                <label>Arredondamento
+                    <input type="text" name="theme__{{ block.id }}__radius" value="{{ block.theme_values.radius }}" placeholder="18px">
+                </label>
+                <label>Espaçamento interno
+                    <input type="text" name="theme__{{ block.id }}__padding" value="{{ block.theme_values.padding }}" placeholder="16px">
+                </label>
+                <label class="full-width">Sombra
+                    <input type="text" name="theme__{{ block.id }}__shadow" value="{{ block.theme_values.shadow }}" placeholder="0 10px 30px rgba(15, 23, 42, 0.08)">
+                </label>
+            </div>
+        </article>
+        {% endfor %}
+
+        <article class="table-card">
+            <h2>CSS avançado</h2>
+            <p class="muted">Use só para detalhes extras. O editor visual acima já cobre o padrão principal.</p>
+            <label>Regras livres
+                <textarea name="advanced_css" rows="14" class="code-box" placeholder=".product-card:hover {&#10;    transform: translateY(-2px);&#10;}">{{ advanced_css }}</textarea>
+            </label>
+            <div class="button-row top-gap">
+                <button type="submit" name="action" value="apply" class="btn btn-primary">Aplicar no site todo</button>
+                <button type="submit" name="action" value="reset" class="btn btn-danger" onclick="return confirm('Remover todo o tema personalizado e voltar ao padrão?');">Restaurar padrão</button>
+            </div>
+        </article>
+
+        <article class="table-card">
+            <h2>Referência das classes em uso</h2>
+            <div class="class-grid">
+                {% for item in used_classes %}
+                <div class="class-card">
+                    <div class="class-card-head"><strong>.{{ item.name }}</strong></div>
+                    {% if item.files %}
+                    <p class="muted">Usada em: {{ item.files | join(', ') }}</p>
+                    {% else %}
+                    <p class="muted">Classe definida no CSS base.</p>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </article>
+    </section>
+</form>
+
+<script>
+(function () {
+    const navButtons = document.querySelectorAll('.theme-nav-btn');
+    const panels = document.querySelectorAll('.theme-panel');
+
+    navButtons.forEach((button) => {
+        button.addEventListener('click', function () {
+            const target = this.dataset.target;
+            navButtons.forEach((btn) => btn.classList.toggle('active', btn === this));
+            panels.forEach((panel) => panel.classList.toggle('hidden', panel.dataset.panel !== target));
+        });
+    });
+
+    document.querySelectorAll('[data-sync-color]').forEach((picker) => {
+        const textInput = picker.parentElement.querySelector('input[type="text"]');
+        picker.addEventListener('input', function () {
+            textInput.value = this.value;
+        });
+        textInput.addEventListener('input', function () {
+            if (/^#[0-9a-fA-F]{6}$/.test(this.value) || /^#[0-9a-fA-F]{3}$/.test(this.value)) {
+                picker.value = this.value;
+            }
+        });
+    });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="catalog-layout">
+    <aside class="sidebar">
+        <h2>Categorias</h2>
+        <a class="sidebar-link {% if not selected_category %}active{% endif %}" href="{{ url_for('store.index') }}">Todas</a>
+        {% for category in categories %}
+            <a class="sidebar-link {% if selected_category and selected_category.id == category.id %}active{% endif %}" href="{{ url_for('store.index', category=category.slug) }}">{{ category.name }}</a>
+        {% endfor %}
+    </aside>
+    <div class="catalog-content">
+        <div class="page-header">
+            <div>
+                <h1>Produtos da loja</h1>
+                <p>Escolha consumíveis ou utensílios e finalize quando quiser.</p>
+            </div>
+            {% if not is_store_enabled and current_user.is_admin %}<span class="badge badge-warning">Loja offline para clientes</span>{% endif %}
+        </div>
+        <div class="product-grid">
+            {% for product in products %}
+                <article class="product-card">
+                    <div class="product-card-image-wrap">
+                        <img
+                            class="product-card-image"
+                            src="{{ url_for('static', filename=product.main_image) if not product.main_image.startswith('http') else product.main_image }}"
+                            alt="{{ product.name }}"
+                        >
+                        {% if product.has_discount %}
+                            <span class="discount-badge-circle">-{{ product.discount_percentage }}%</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="product-card-body">
+                        <div class="stack-inline">
+                            <span class="badge badge-category">{{ product.category.name }}</span>
+                            <span class="badge badge-soft">{{ product.type_display }}</span>
+                        </div>
+
+                        <h3>{{ product.name }}</h3>
+
+                        <p class="product-description">
+                            {{ product.description[:95] }}{% if product.description|length > 95 %}...{% endif %}
+                        </p>
+
+                        <div class="product-specs">
+                            {% if product.product_type == 'consumivel' and product.weight_grams %}
+                                <span>Gramagem: {{ product.weight_grams }}</span>
+                            {% elif product.product_type == 'utensilio' %}
+                                <span>Tamanho: {{ product.size_info or 'Não informado' }}</span>
+                            {% endif %}
+                        </div>
+
+                        <div class="product-meta">
+                            <div class="price-stack">
+                                {% if product.has_discount %}
+                                    <span class="product-price-old">{{ format_brl(product.original_price) }}</span>
+                                {% endif %}
+                                <strong class="product-price">{{ format_brl(product.effective_price) }}</strong>
+                            </div>
+                            <span class="stock-label">Estoque: {{ product.stock }}</span>
+                        </div>
+
+                        {% if product.has_bulk_discount_offer %}
+                            <p class="quantity-discount-mini">Leve {{ product.bulk_discount_min_qty }}+ e ganhe {{ product.bulk_discount_percent_display }}% off</p>
+                        {% endif %}
+
+                        <a class="btn btn-primary full-width" href="{{ url_for('store.product_detail', product_id=product.id) }}">Ver detalhes</a>
+                    </div>
+                </article>
+            {% else %}
+                <div class="empty-state">
+                    <h3>Nenhum produto encontrado</h3>
+                    <p>Adicione itens no painel administrativo.</p>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="page-header"><div><h1>Meu perfil</h1><p>Aqui ficam seus pedidos, status e comprovantes.</p></div></section>
+<div class="profile-card"><p><strong>Nome:</strong> {{ current_user.name }}</p><p><strong>E-mail:</strong> {{ current_user.email }}</p><p><strong>WhatsApp:</strong> {{ current_user.phone }}</p></div>
+<div class="table-card"><h2>Histórico de pedidos</h2><table class="table"><thead><tr><th>Pedido</th><th>Total</th><th>Status</th><th>Pagamento</th><th>Comprovante</th><th>Ação</th></tr></thead><tbody>
+{% for order in orders %}
+<tr>
+<td><a class="text-link" href="{{ url_for('store.order_detail', order_id=order.id) }}">{{ order.code or ('#' ~ order.id) }}</a></td>
+<td>{{ format_brl(order.subtotal) }}</td>
+<td><span class="{{ status_badges.get(order.status, 'badge') }}">{{ order.status_display }}</span></td>
+<td>{{ order.payment_status_display }}</td>
+<td>{% if order.receipt_text %}<a class="text-link" href="{{ url_for('store.order_detail', order_id=order.id) }}">Ver comprovante</a>{% else %}-{% endif %}</td>
+<td>{% if order.status == 'pending' %}<form method="post" action="{{ url_for('store.cancel_order', order_id=order.id) }}" onsubmit="return confirm('Tem certeza que deseja cancelar este pedido?');"><button type="submit" class="btn btn-danger btn-sm">Cancelar</button></form>{% else %}-{% endif %}</td>
+</tr>
+{% else %}<tr><td colspan="6">Você ainda não tem pedidos.</td></tr>{% endfor %}
+</tbody></table></div>
+{% endblock %}

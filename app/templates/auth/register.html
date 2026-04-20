@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="auth-wrapper">
+    <div class="auth-card">
+        <div class="auth-brand-top">
+            <img src="{{ url_for('static', filename='img/logo_dark.svg') }}" alt="{{ store_name }}" class="auth-logo" data-dark-logo="{{ url_for('static', filename='img/logo_dark.svg') }}" data-light-logo="{{ url_for('static', filename='img/logo_light.svg') }}">
+            <span class="badge badge-category">CADASTRO</span>
+        </div>
+        <h1>Criar conta</h1>
+        <p class="muted">Depois do cadastro, você volta para a tela de login.</p>
+        <form method="post" class="form-grid">
+            <label>Nome
+                <input type="text" name="name" required>
+            </label>
+            <label>E-mail
+                <input type="email" name="email" required>
+            </label>
+            <label>WhatsApp
+                <input type="text" name="phone" required>
+            </label>
+            <label>Senha
+                <input type="password" name="password" required>
+            </label>
+            <label>Confirmar senha
+                <input type="password" name="confirm_password" required>
+            </label>
+            <button type="submit" class="btn btn-primary">Cadastrar</button>
+        </form>
+        <p class="top-gap"><a class="text-link" href="{{ url_for('auth.login') }}">Voltar para login</a></p>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="page-header">
+    <div>
+        <h1>Pedido {{ order.code or ('#' ~ order.id) }}</h1>
+        <p>Status do pedido: <span class="{{ status_badges.get(order.status, 'badge') }}">{{ order.status_display }}</span> | Pagamento: <strong>{{ order.payment_status_display }}</strong></p>
+    </div>
+</section>
+
+<div class="order-layout">
+    <div class="table-card">
+        <h2>Itens do pedido</h2>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Produto</th>
+                    <th>Cor</th>
+                    <th>Tamanho</th>
+                    <th>Qtd</th>
+                    <th>Unitário</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in order.items %}
+                <tr>
+                    <td>{{ item.product_name }}</td>
+                    <td>
+                        {% if item.selected_color_name %}
+                            <span class="cart-size-chip cart-color-chip">
+                                <span class="swatch cart-color-swatch" style="background: {{ item.selected_color_hex or '#111827' }}"></span>
+                                {{ item.selected_color_name }}
+                            </span>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>{{ item.selected_size or '-' }}</td>
+                    <td>{{ item.quantity }}</td>
+                    <td>{{ format_brl(item.unit_price) }}</td>
+                    <td>{{ format_brl(item.total_price) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <p class="price-large">Total: {{ format_brl(order.subtotal) }}</p>
+
+        <div class="button-row action-stack top-gap">
+            {% if order.status == 'pending' and order.user_id == current_user.id %}
+            <form method="post" action="{{ url_for('store.cancel_order', order_id=order.id) }}" onsubmit="return confirm('Tem certeza que deseja cancelar este pedido?');">
+                <button type="submit" class="btn btn-danger">Cancelar pedido</button>
+            </form>
+            {% endif %}
+            {% if order.whatsapp_receipt_link %}
+                <a class="btn btn-success" target="_blank" rel="noopener" href="{{ order.whatsapp_receipt_link }}">Abrir comprovante no meu WhatsApp</a>
+            {% endif %}
+            {% if current_user.is_admin and customer_whatsapp_link %}
+                <a class="btn" target="_blank" rel="noopener" href="{{ customer_whatsapp_link }}">Avisar cliente no WhatsApp</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="payment-card">
+        <h2>Pagamento</h2>
+        {% if order.status == 'rejected' %}
+            <p>Este pedido foi recusado. O pagamento foi bloqueado.</p>
+        {% elif order.status == 'cancelled' %}
+            <p>Este pedido foi cancelado por você antes da aprovação.</p>
+        {% elif order.status == 'pending' %}
+            <p>Seu pedido foi registrado e está aguardando aprovação.</p>
+            <p class="muted">Assim que o administrador aprovar, o QR Code PIX aparece aqui para pagamento.</p>
+        {% else %}
+            {% if order.pix_qr_path %}<img class="qr-image" src="{{ url_for('static', filename=order.pix_qr_path) }}" alt="QR Code PIX">{% endif %}
+            <p>Escaneie o QR Code para realizar o pagamento.</p>
+            <textarea rows="6" readonly>{{ order.pix_payload }}</textarea>
+            {% if order.payment_status != 'paid' %}
+                <p class="muted">Depois do pagamento, o atendimento libera o comprovante.</p>
+            {% else %}
+                <div class="receipt-box"><h3>Comprovante gerado</h3><pre>{{ order.receipt_text }}</pre></div>
+            {% endif %}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

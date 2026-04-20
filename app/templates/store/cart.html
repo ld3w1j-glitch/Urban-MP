@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="page-header">
+    <div>
+        <h1>Carrinho</h1>
+        <p>Revise os itens antes de registrar o pedido.</p>
+    </div>
+</section>
+
+{% if cart_items %}
+<form method="post" action="{{ url_for('store.update_cart') }}" class="table-card">
+    <table class="table cart-table">
+        <thead>
+            <tr>
+                <th>Produto</th>
+                <th>Preço</th>
+                <th>Quantidade</th>
+                <th>Subtotal</th>
+                <th>Ação</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in cart_items %}
+            <tr>
+                <td>
+                    <div class="cart-product-cell">
+                        {% set thumb_src = item.selected_color_image or item.product.main_image %}
+                        <img
+                            class="cart-thumb"
+                            src="{{ url_for('static', filename=thumb_src) if thumb_src and not thumb_src.startswith('http') else thumb_src }}"
+                            alt="{{ item.product.name }}"
+                        >
+                        <div class="cart-product-info">
+                            <strong>{{ item.product.name }}</strong>
+                            <span class="muted">{{ item.product.category.name }}</span>
+
+                            <div class="cart-choice-stack">
+                                {% if item.selected_size %}
+                                    <span class="cart-size-chip">Tamanho: {{ item.selected_size }}</span>
+                                {% endif %}
+                                {% if item.selected_color_name %}
+                                    <span class="cart-size-chip cart-color-chip">
+                                        <span class="swatch cart-color-swatch" style="background: {{ item.selected_color_hex or '#111827' }}"></span>
+                                        Cor: {{ item.selected_color_name }}
+                                    </span>
+                                {% endif %}
+                            </div>
+
+                            {% if item.has_bulk_discount %}
+                                <span class="cart-size-chip quantity-discount-chip">Desconto {{ item.product.bulk_discount_percent_display }}% aplicado</span>
+                            {% elif item.product.has_bulk_discount_offer %}
+                                <span class="muted tiny-text">A partir de {{ item.product.bulk_discount_min_qty }} unidades você ganha {{ item.product.bulk_discount_percent_display }}% off.</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <div class="price-table-stack">
+                        {% if item.has_bulk_discount %}
+                            <span class="product-price-old">{{ format_brl(item.product.effective_price) }}</span>
+                        {% elif item.product.has_discount %}
+                            <span class="product-price-old">{{ format_brl(item.product.original_price) }}</span>
+                        {% endif %}
+                        <strong>{{ format_brl(item.unit_price) }}</strong>
+                    </div>
+                </td>
+                <td>
+                    <input type="hidden" name="cart_item_id" value="{{ item.id }}">
+                    <input type="number" name="quantity" min="1" max="{{ item.product.stock }}" value="{{ item.quantity }}">
+                </td>
+                <td>
+                    <div class="price-table-stack">
+                        {% if item.has_bulk_discount %}
+                            <span class="product-price-old">{{ format_brl(item.base_subtotal) }}</span>
+                        {% endif %}
+                        <strong>{{ format_brl(item.subtotal) }}</strong>
+                    </div>
+                </td>
+                <td>
+                    <button
+                        type="submit"
+                        class="btn btn-danger btn-sm"
+                        formaction="{{ url_for('store.remove_cart_item', item_id=item.id) }}"
+                        formmethod="post"
+                    >
+                        Remover
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="cart-footer cart-footer-vertical">
+        {% if total_bulk_savings > 0 %}
+            <span class="cart-savings-text">Você economizou {{ format_brl(total_bulk_savings) }} com o desconto por quantidade.</span>
+        {% endif %}
+        <div class="cart-footer-line">
+            <strong>Total: {{ format_brl(total) }}</strong>
+            <div class="button-row">
+                <button type="submit" class="btn">Atualizar carrinho</button>
+            </div>
+        </div>
+    </div>
+</form>
+
+<form method="post" action="{{ url_for('store.checkout') }}" class="checkout-box">
+    <button type="submit" class="btn btn-primary">Gerar pedido e enviar para aprovação</button>
+</form>
+{% else %}
+<div class="empty-state">
+    <h3>Seu carrinho está vazio</h3>
+    <p>Adicione produtos para continuar.</p>
+</div>
+{% endif %}
+{% endblock %}

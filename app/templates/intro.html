@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ store_name }} | Abertura</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/site_icon.svg') }}">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='img/site_icon.svg') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/site_icon.svg') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="intro-body">
+    <main class="intro-page">
+        <video
+            class="intro-video"
+            autoplay
+            muted
+            playsinline
+            preload="auto"
+            poster="{{ url_for('static', filename='img/intro_poster.png') }}"
+            id="introVideo"
+        >
+            <source src="{{ url_for('static', filename='media/intro.mp4') }}" type="video/mp4">
+        </video>
+
+        <button type="button" class="intro-skip" id="introSkip">Pular abertura</button>
+    </main>
+
+    <script>
+        (function () {
+            const video = document.getElementById('introVideo');
+            const progress = document.getElementById('introProgress');
+            const skip = document.getElementById('introSkip');
+            const target = "{{ url_for('auth.login') }}";
+            let redirected = false;
+
+            function goNext() {
+                if (redirected) return;
+                redirected = true;
+                window.location.href = target;
+            }
+
+            function updateProgress() {
+                if (!video || !progress || !video.duration) return;
+                const ratio = Math.min(video.currentTime / video.duration, 1);
+                progress.style.width = (ratio * 100) + '%';
+            }
+
+            if (video) {
+                video.addEventListener('timeupdate', updateProgress);
+                video.addEventListener('ended', goNext);
+                video.addEventListener('error', function () {
+                    setTimeout(goNext, 1200);
+                });
+
+                const playPromise = video.play();
+                if (playPromise && typeof playPromise.then === 'function') {
+                    playPromise.catch(function () {
+                        setTimeout(goNext, 5200);
+                    });
+                }
+            }
+
+            skip.addEventListener('click', goNext);
+            setTimeout(goNext, 5600);
+        })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,245 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="detail-layout">
+    <div class="detail-image stack-gap">
+        <div class="detail-main-image-wrap zoom-area" id="zoomArea">
+            <img
+                id="productMainImage"
+                src="{{ url_for('static', filename=product.main_image) if not product.main_image.startswith('http') else product.main_image }}"
+                alt="{{ product.name }}"
+            >
+            <div class="zoom-lens" id="zoomLens" aria-hidden="true"></div>
+            {% if product.has_discount %}
+                <span class="discount-badge-circle detail-discount-badge">-{{ product.discount_percentage }}%</span>
+            {% endif %}
+        </div>
+        <div class="zoom-preview" id="zoomPreview" aria-hidden="true"></div>
+
+        {% if product.product_type == 'utensilio' and product.color_variants %}
+        <div class="variant-gallery">
+            <h3>Cores disponíveis</h3>
+            <div class="variant-grid">
+                {% for variant in product.color_variants %}
+                <button
+                    type="button"
+                    class="variant-card variant-select-btn"
+                    data-color-name="{{ variant.color_name }}"
+                    data-color-hex="{{ variant.safe_color_hex }}"
+                    data-color-image="{{ url_for('static', filename=variant.image_src) if not variant.image_src.startswith('http') else variant.image_src }}"
+                    aria-label="Selecionar cor {{ variant.color_name }}"
+                >
+                    <img src="{{ url_for('static', filename=variant.image_src) if not variant.image_src.startswith('http') else variant.image_src }}" alt="{{ variant.color_name }}">
+                    <div class="variant-card-footer">
+                        <span class="swatch" style="background: {{ variant.safe_color_hex }}"></span>
+                        <strong>{{ variant.color_name }}</strong>
+                        <small>{{ variant.safe_color_hex }}</small>
+                    </div>
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="detail-info">
+        <div class="stack-inline">
+            <span class="badge badge-category">{{ product.category.name }}</span>
+            <span class="badge badge-soft">{{ product.type_display }}</span>
+        </div>
+
+        <h1>{{ product.name }}</h1>
+        <p>{{ product.description }}</p>
+
+        <div class="price-block-large">
+            {% if product.has_discount %}
+                <span class="price-large-old">{{ format_brl(product.original_price) }}</span>
+            {% endif %}
+            <p class="price-large">{{ format_brl(product.effective_price) }}</p>
+            {% if product.has_bulk_discount_offer %}
+                <p class="quantity-discount-hint">Leve {{ product.bulk_discount_min_qty }} ou mais e ganhe {{ product.bulk_discount_percent_display }}% de desconto automático.</p>
+            {% endif %}
+        </div>
+
+        <p>Estoque disponível: {{ product.stock }}</p>
+
+        {% if product.product_type == 'consumivel' %}
+        <div class="spec-box">
+            <h3>Informações do consumível</h3>
+            <p><strong>Gramagem:</strong> {{ product.weight_grams or 'Não informada' }}</p>
+            <p><strong>Ingredientes:</strong></p>
+            {% if product.ingredient_list %}
+                <ul class="clean-list">
+                    {% for ingredient in product.ingredient_list %}
+                        <li>{{ ingredient }}</li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="muted">Sem ingredientes cadastrados.</p>
+            {% endif %}
+        </div>
+        {% else %}
+        <div class="spec-box">
+            <h3>Informações do utensílio</h3>
+            <p><strong>Tamanho:</strong> {{ product.size_info or 'Não informado' }}</p>
+            <p><strong>Material / tecido:</strong> {{ product.material or 'Não informado' }}</p>
+            <p><strong>Cores cadastradas:</strong> {{ product.color_names|join(', ') if product.color_names else 'Nenhuma cor cadastrada' }}</p>
+        </div>
+        {% endif %}
+
+        <form method="post" class="stack-gap" id="productForm">
+            <input type="hidden" name="selected_color_name" id="selectedColorName" value="">
+            <input type="hidden" name="selected_color_hex" id="selectedColorHex" value="">
+            <input type="hidden" name="selected_color_image" id="selectedColorImage" value="">
+
+            {% if product.color_variants %}
+                <div class="selected-color-box" id="selectedColorBox">
+                    <span class="muted">Cor selecionada:</span>
+                    <div class="selected-color-inline">
+                        <span class="swatch selected-color-swatch" id="selectedColorSwatch"></span>
+                        <strong id="selectedColorLabel">Nenhuma cor selecionada</strong>
+                    </div>
+                </div>
+            {% endif %}
+
+            {% if product.size_options %}
+            <label>Tamanho
+                <select name="selected_size" required>
+                    <option value="">Selecione um tamanho</option>
+                    {% for size in product.size_options %}
+                        <option value="{{ size }}">{{ size }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            {% endif %}
+
+            <label>Quantidade
+                <input type="number" name="quantity" min="1" max="{{ product.stock }}" value="1" required>
+            </label>
+
+            <div class="button-row action-stack">
+                <button type="submit" class="btn btn-primary" formaction="{{ url_for('store.buy_now', product_id=product.id) }}" formmethod="post">Finalizar compra</button>
+                <button type="submit" class="btn" formaction="{{ url_for('store.add_to_cart', product_id=product.id) }}" formmethod="post">Adicionar ao carrinho</button>
+            </div>
+
+            <p class="muted detail-help-text">
+                Ao clicar em <strong>Finalizar compra</strong>, o produto vai primeiro para o carrinho para você revisar tudo antes de gerar o pedido.
+            </p>
+        </form>
+    </div>
+</section>
+
+
+<script>
+(function () {
+    const buttons = document.querySelectorAll('.variant-select-btn');
+    const hiddenName = document.getElementById('selectedColorName');
+    const hiddenHex = document.getElementById('selectedColorHex');
+    const hiddenImage = document.getElementById('selectedColorImage');
+    const label = document.getElementById('selectedColorLabel');
+    const swatch = document.getElementById('selectedColorSwatch');
+    const mainImage = document.getElementById('productMainImage');
+    const form = document.getElementById('productForm');
+
+    const zoomArea = document.getElementById('zoomArea');
+    const zoomLens = document.getElementById('zoomLens');
+    const zoomPreview = document.getElementById('zoomPreview');
+    const zoomScale = 2.4;
+
+    function isTouchDevice() {
+        return window.matchMedia('(hover: none), (pointer: coarse)').matches;
+    }
+
+    function syncZoomImage() {
+        if (!mainImage || !zoomPreview) return;
+        zoomPreview.style.backgroundImage = `url("${mainImage.src}")`;
+        zoomPreview.style.backgroundRepeat = 'no-repeat';
+        zoomPreview.style.backgroundSize = `${mainImage.clientWidth * zoomScale}px ${mainImage.clientHeight * zoomScale}px`;
+    }
+
+    function activateZoom() {
+        if (!zoomArea || !zoomLens || !zoomPreview || isTouchDevice()) return;
+        zoomArea.classList.add('zoom-active');
+        zoomPreview.classList.add('zoom-active');
+        syncZoomImage();
+    }
+
+    function deactivateZoom() {
+        if (!zoomArea || !zoomLens || !zoomPreview) return;
+        zoomArea.classList.remove('zoom-active');
+        zoomPreview.classList.remove('zoom-active');
+    }
+
+    function updateZoom(event) {
+        if (!zoomArea || !zoomLens || !zoomPreview || !mainImage || isTouchDevice()) return;
+
+        const rect = mainImage.getBoundingClientRect();
+        const lensSize = zoomLens.offsetWidth || 140;
+
+        let x = event.clientX - rect.left;
+        let y = event.clientY - rect.top;
+
+        x = Math.max(0, Math.min(x, rect.width));
+        y = Math.max(0, Math.min(y, rect.height));
+
+        let lensLeft = x - (lensSize / 2);
+        let lensTop = y - (lensSize / 2);
+
+        lensLeft = Math.max(0, Math.min(lensLeft, rect.width - lensSize));
+        lensTop = Math.max(0, Math.min(lensTop, rect.height - lensSize));
+
+        zoomLens.style.left = `${lensLeft}px`;
+        zoomLens.style.top = `${lensTop}px`;
+
+        const bgX = -((lensLeft + lensSize / 2) * zoomScale - zoomPreview.clientWidth / 2);
+        const bgY = -((lensTop + lensSize / 2) * zoomScale - zoomPreview.clientHeight / 2);
+
+        zoomPreview.style.backgroundPosition = `${bgX}px ${bgY}px`;
+    }
+
+    if (zoomArea && mainImage && zoomPreview && zoomLens) {
+        mainImage.addEventListener('load', syncZoomImage);
+        zoomArea.addEventListener('mouseenter', activateZoom);
+        zoomArea.addEventListener('mousemove', updateZoom);
+        zoomArea.addEventListener('mouseleave', deactivateZoom);
+        window.addEventListener('resize', syncZoomImage);
+        syncZoomImage();
+    }
+
+    function selectVariant(button) {
+        buttons.forEach((item) => item.classList.remove('active'));
+        button.classList.add('active');
+
+        const colorName = button.dataset.colorName || '';
+        const colorHex = button.dataset.colorHex || '#111827';
+        const colorImage = button.dataset.colorImage || '';
+
+        hiddenName.value = colorName;
+        hiddenHex.value = colorHex;
+        hiddenImage.value = colorImage;
+
+        if (label) label.textContent = colorName || 'Nenhuma cor selecionada';
+        if (swatch) swatch.style.background = colorHex;
+        if (mainImage && colorImage) {
+            mainImage.src = colorImage;
+            syncZoomImage();
+        }
+    }
+
+    if (buttons.length) {
+        buttons.forEach((button) => {
+            button.addEventListener('click', () => selectVariant(button));
+        });
+
+        selectVariant(buttons[0]);
+
+        form.addEventListener('submit', function (event) {
+            if (!hiddenName.value) {
+                event.preventDefault();
+                alert('Escolha uma cor para continuar.');
+            }
+        });
+    }
+})();
+</script>
+
+{% endblock %}

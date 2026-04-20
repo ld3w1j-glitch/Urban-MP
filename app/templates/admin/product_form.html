@@ -1,0 +1,280 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="page-header">
+    <div>
+        <h1>{{ 'Editar produto' if product else 'Novo produto' }}</h1>
+        <p>Cadastro padronizado com dois tipos de produto e bloco visual para cada cor do utensílio.</p>
+    </div>
+    <a class="btn" href="{{ url_for('admin.dashboard') }}">Voltar</a>
+</section>
+
+<div class="table-card">
+    <form method="post" enctype="multipart/form-data" class="form-grid" id="product-form">
+        <div class="form-section-title full-width">
+            <h2>Informações principais</h2>
+            <p class="muted">Preencha o básico primeiro. O restante muda conforme o tipo do produto.</p>
+        </div>
+
+        <label>Tipo do produto
+            <select name="product_type" id="product_type" required>
+                <option value="consumivel" {% if not product or product.product_type == 'consumivel' %}selected{% endif %}>Consumível</option>
+                <option value="utensilio" {% if product and product.product_type == 'utensilio' %}selected{% endif %}>Utensílio</option>
+            </select>
+        </label>
+
+        <label>Nome
+            <input type="text" name="name" value="{{ product.name if product else '' }}" required>
+        </label>
+
+        <label>Categoria
+            <select name="category_id" required>
+                {% for category in categories %}
+                    <option value="{{ category.id }}" {% if product and product.category_id == category.id %}selected{% endif %}>{{ category.name }}</option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <label>Valor cheio
+            <input type="number" step="0.01" min="0" name="price" value="{{ product.price if product else '' }}" required>
+        </label>
+
+        <label>Valor com desconto (opcional)
+            <input type="number" step="0.01" min="0" name="discount_price" value="{{ product.discount_price if product and product.discount_price is not none else '' }}" placeholder="Ex.: 49.90">
+        </label>
+
+        <label>Estoque
+            <input type="number" min="0" name="stock" value="{{ product.stock if product else '0' }}" required>
+        </label>
+
+        <label>Imagem principal do computador
+            <input type="file" name="image_file" accept=".png,.jpg,.jpeg,.webp,.gif">
+        </label>
+
+        <label>ou URL da imagem principal
+            <input type="text" name="image_url" value="{{ product.image_url if product else '' }}" placeholder="https://...">
+        </label>
+
+        {% if product %}
+        <div class="product-preview full-width">
+            <strong>Imagem atual:</strong>
+            <img class="admin-thumb" src="{{ url_for('static', filename=product.main_image) if not product.main_image.startswith('http') else product.main_image }}" alt="{{ product.name }}">
+        </div>
+        {% endif %}
+
+        <label class="checkbox-label">
+            <input type="checkbox" name="active" {% if not product or product.active %}checked{% endif %}>
+            Produto ativo
+        </label>
+
+        <label class="full-width">Descrição
+            <textarea name="description" rows="5" required>{{ product.description if product else '' }}</textarea>
+        </label>
+
+        <div id="consumivel-fields" class="type-box full-width">
+            <div class="form-section-title">
+                <h2>Dados do consumível</h2>
+                <p class="muted">Exemplo: alimentos, doces, bebidas e itens preparados.</p>
+            </div>
+            <div class="form-grid two-col-grid">
+                <label>Gramagem
+                    <input type="text" name="weight_grams" value="{{ product.weight_grams if product else '' }}" placeholder="Ex.: 500 g ou 1 kg">
+                </label>
+                <label class="full-width">Ingredientes usados na receita
+                    <textarea name="recipe_ingredients" rows="5" placeholder="Ex.: farinha, açúcar, leite, ovos...">{{ product.recipe_ingredients if product else '' }}</textarea>
+                </label>
+            </div>
+        </div>
+
+        <div id="utensilio-fields" class="type-box full-width">
+            <div class="form-section-title">
+                <h2>Dados do utensílio</h2>
+                <p class="muted">Exemplo: roupas, acessórios, embalagens ou peças com cor e imagem própria.</p>
+            </div>
+            <div class="form-grid two-col-grid">
+                <label>Tamanho
+                    <input type="text" name="size_info" value="{{ product.size_info if product else '' }}" placeholder="Ex.: P, M, G, GG ou 40x30 cm"><small class="muted">Para permitir seleção de tamanho na loja, cadastre os tamanhos separados por vírgula.</small>
+                </label>
+                <label>Tecido ou material
+                    <input type="text" name="material" value="{{ product.material if product else '' }}" placeholder="Ex.: algodão, inox, plástico ABS">
+                </label>
+            </div>
+
+            <div class="color-variants-box">
+                <div class="section-title">
+                    <div>
+                        <h3>Cores existentes do produto</h3>
+                        <p class="muted">Cada cor recebe nome, código, imagem e fica em um bloco separado.</p>
+                    </div>
+                    <button type="button" class="btn btn-primary btn-sm" id="add-color-row">Adicionar cor</button>
+                </div>
+
+                <div id="color-rows" class="color-rows">
+                    {% if product and product.color_variants %}
+                        {% for variant in product.color_variants %}
+                        <div class="color-row">
+                            <div class="color-row-head">
+                                <strong class="color-row-title">Cor {{ loop.index }}</strong>
+                                <button type="button" class="btn btn-danger btn-sm remove-color-row">Remover</button>
+                            </div>
+                            <div class="color-row-grid">
+                                <label>Nome da cor
+                                    <input type="text" name="color_name[]" value="{{ variant.color_name }}" placeholder="Ex.: Preto">
+                                </label>
+                                <label>Código / seletor da cor
+                                    <div class="color-input-row">
+                                        <input type="color" data-sync-color value="{{ variant.safe_color_hex }}">
+                                        <input type="text" name="color_hex[]" value="{{ variant.safe_color_hex }}" placeholder="#111111">
+                                    </div>
+                                </label>
+                                <label>Imagem do computador
+                                    <input type="file" name="color_image[]" accept=".png,.jpg,.jpeg,.webp,.gif">
+                                </label>
+                                <label>ou URL da imagem
+                                    <input type="text" name="color_image_url[]" value="{{ variant.image_url or '' }}" placeholder="https://...">
+                                </label>
+                            </div>
+                            <input type="hidden" name="color_existing_filename[]" value="{{ variant.image_filename or '' }}">
+                            <div class="color-preview-card">
+                                <span class="swatch" style="background: {{ variant.safe_color_hex }}"></span>
+                                <img class="admin-thumb small" src="{{ url_for('static', filename=variant.image_src) if not variant.image_src.startswith('http') else variant.image_src }}" alt="{{ variant.color_name }}">
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="color-row">
+                            <div class="color-row-head">
+                                <strong class="color-row-title">Cor 1</strong>
+                                <button type="button" class="btn btn-danger btn-sm remove-color-row">Remover</button>
+                            </div>
+                            <div class="color-row-grid">
+                                <label>Nome da cor
+                                    <input type="text" name="color_name[]" placeholder="Ex.: Azul marinho">
+                                </label>
+                                <label>Código / seletor da cor
+                                    <div class="color-input-row">
+                                        <input type="color" data-sync-color value="#1d4ed8">
+                                        <input type="text" name="color_hex[]" value="#1d4ed8" placeholder="#1d4ed8">
+                                    </div>
+                                </label>
+                                <label>Imagem do computador
+                                    <input type="file" name="color_image[]" accept=".png,.jpg,.jpeg,.webp,.gif">
+                                </label>
+                                <label>ou URL da imagem
+                                    <input type="text" name="color_image_url[]" placeholder="https://...">
+                                </label>
+                            </div>
+                            <input type="hidden" name="color_existing_filename[]" value="">
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Salvar produto</button>
+    </form>
+</div>
+
+<template id="color-row-template">
+    <div class="color-row">
+        <div class="color-row-head">
+            <strong class="color-row-title">Cor</strong>
+            <button type="button" class="btn btn-danger btn-sm remove-color-row">Remover</button>
+        </div>
+        <div class="color-row-grid">
+            <label>Nome da cor
+                <input type="text" name="color_name[]" placeholder="Ex.: Vermelho">
+            </label>
+            <label>Código / seletor da cor
+                <div class="color-input-row">
+                    <input type="color" data-sync-color value="#dc2626">
+                    <input type="text" name="color_hex[]" value="#dc2626" placeholder="#dc2626">
+                </div>
+            </label>
+            <label>Imagem do computador
+                <input type="file" name="color_image[]" accept=".png,.jpg,.jpeg,.webp,.gif">
+            </label>
+            <label>ou URL da imagem
+                <input type="text" name="color_image_url[]" placeholder="https://...">
+            </label>
+        </div>
+        <input type="hidden" name="color_existing_filename[]" value="">
+    </div>
+</template>
+
+<script>
+(function () {
+    const productType = document.getElementById('product_type');
+    const consumivelFields = document.getElementById('consumivel-fields');
+    const utensilioFields = document.getElementById('utensilio-fields');
+    const colorRows = document.getElementById('color-rows');
+    const template = document.getElementById('color-row-template');
+    const addColorBtn = document.getElementById('add-color-row');
+
+    function toggleTypeFields() {
+        const isConsumivel = productType.value === 'consumivel';
+        consumivelFields.style.display = isConsumivel ? 'block' : 'none';
+        utensilioFields.style.display = isConsumivel ? 'none' : 'block';
+    }
+
+    function syncColorInputs(scope) {
+        scope.querySelectorAll('[data-sync-color]').forEach((picker) => {
+            const textInput = picker.parentElement.querySelector('input[type="text"]');
+            picker.addEventListener('input', function () {
+                textInput.value = this.value;
+                const swatch = picker.closest('.color-row')?.querySelector('.swatch');
+                if (swatch) swatch.style.background = this.value;
+            });
+            textInput.addEventListener('input', function () {
+                if (/^#[0-9a-fA-F]{6}$/.test(this.value) || /^#[0-9a-fA-F]{3}$/.test(this.value)) {
+                    picker.value = this.value;
+                    const swatch = picker.closest('.color-row')?.querySelector('.swatch');
+                    if (swatch) swatch.style.background = this.value;
+                }
+            });
+        });
+    }
+
+    function refreshColorTitles() {
+        colorRows.querySelectorAll('.color-row').forEach((row, index) => {
+            const title = row.querySelector('.color-row-title');
+            if (title) title.textContent = `Cor ${index + 1}`;
+        });
+    }
+
+    function wireRemoveButtons(scope) {
+        scope.querySelectorAll('.remove-color-row').forEach((button) => {
+            button.onclick = function () {
+                const rows = colorRows.querySelectorAll('.color-row');
+                if (rows.length <= 1) {
+                    const currentRow = this.closest('.color-row');
+                    currentRow.querySelectorAll('input[type="text"]').forEach((input) => input.value = '');
+                    currentRow.querySelectorAll('input[type="file"]').forEach((input) => input.value = '');
+                    const colorField = currentRow.querySelector('input[name="color_hex[]"]');
+                    if (colorField) colorField.value = '#1d4ed8';
+                    const picker = currentRow.querySelector('[data-sync-color]');
+                    if (picker) picker.value = '#1d4ed8';
+                    return;
+                }
+                this.closest('.color-row').remove();
+                refreshColorTitles();
+            };
+        });
+    }
+
+    addColorBtn?.addEventListener('click', function () {
+        const fragment = template.content.cloneNode(true);
+        colorRows.appendChild(fragment);
+        const latest = colorRows.lastElementChild;
+        syncColorInputs(latest);
+        wireRemoveButtons(latest);
+        refreshColorTitles();
+    });
+
+    productType.addEventListener('change', toggleTypeFields);
+    toggleTypeFields();
+    syncColorInputs(document);
+    wireRemoveButtons(document);
+    refreshColorTitles();
+})();
+</script>
+{% endblock %}
